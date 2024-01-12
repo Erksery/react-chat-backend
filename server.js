@@ -69,7 +69,7 @@ wss.on("connection", (connection, req) => {
   if (cookies) {
     const tokenCookie = cookies
       .split(";")
-      .find((str) => str.startsWith(" token="));
+      .find((str) => str.startsWith("token="));
     if (tokenCookie !== undefined) {
       const token = tokenCookie.split("=")[1];
       if (token) {
@@ -97,13 +97,18 @@ wss.on("connection", (connection, req) => {
     return a;
   }, []);
 
-  console.log(uniqueUsersOnline);
+  setInterval(() => {
+    wss.clients.forEach((client) => {
+      client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
+    });
+    console.log(uniqueUsersOnline);
+  }, 10000);
 
   connection.on("message", (message) => {
     const parseMessage = JSON.parse(message);
+
     const messageObject = {
       ...parseMessage.message,
-      sender: connection.userId,
     };
     if (parseMessage) {
       addMessage({ messageObject });
@@ -114,7 +119,7 @@ wss.on("connection", (connection, req) => {
         ) {
           client.send(
             JSON.stringify({
-              message: { ...parseMessage.message, sender: connection.userId },
+              message: { ...parseMessage.message },
             })
           );
         }
@@ -123,10 +128,6 @@ wss.on("connection", (connection, req) => {
   });
   connection.on("open", () => {
     uniqueUsersOnline.filter((item) => item !== connection.userId);
-
-    wss.clients.forEach((client) => {
-      client.send("Hi");
-    });
   });
   connection.on("close", () => {
     uniqueUsersOnline.filter((item) => item !== connection.userId);
