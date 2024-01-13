@@ -10,6 +10,11 @@ async function registerUser({ enteredData, res }) {
         .status(400)
         .json({ error: "Пользователь с таким именем уже существует" });
     } else {
+      const colors = ["lightgreen", "orange", "lightblue", "pink"];
+      const randomColor = Math.floor(Math.random() * colors.length);
+
+      const colorIndex = randomColor % colors.length;
+
       const date = new Date();
       const ruDate = date.toLocaleString("ru");
       const hashPassword = bcrypt.hashSync(enteredData.password, 7);
@@ -18,6 +23,7 @@ async function registerUser({ enteredData, res }) {
         password: hashPassword,
         regDate: ruDate,
         status: "User",
+        avatarColor: colors[colorIndex],
       });
       jwt.sign(
         { userId: createUser.insertedId, userLogin: enteredData.login },

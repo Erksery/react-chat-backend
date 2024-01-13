@@ -14,6 +14,7 @@ const { secretKey } = require("./config");
 const { addMessage } = require("./commands/addMessage");
 const { getChatHistory } = require("./commands/getChatHistory");
 const { ObjectId } = require("mongodb");
+const { updateUser } = require("./commands/updateUser");
 
 const server = express();
 
@@ -68,7 +69,7 @@ wss.on("connection", (connection, req) => {
 
   if (cookies) {
     const tokenCookie = cookies
-      .split(";")
+      .split("; ")
       .find((str) => str.startsWith("token="));
     if (tokenCookie !== undefined) {
       const token = tokenCookie.split("=")[1];
@@ -83,26 +84,6 @@ wss.on("connection", (connection, req) => {
       }
     }
   }
-
-  const usersOnline = [];
-
-  [...wss.clients].map((client) => {
-    usersOnline.push(client.userId);
-  });
-
-  let uniqueUsersOnline = usersOnline.reduce((a, c) => {
-    if (!a.includes(c)) {
-      a.push(c);
-    }
-    return a;
-  }, []);
-
-  setInterval(() => {
-    wss.clients.forEach((client) => {
-      client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
-    });
-    console.log(uniqueUsersOnline);
-  }, 10000);
 
   connection.on("message", (message) => {
     const parseMessage = JSON.parse(message);
@@ -125,6 +106,24 @@ wss.on("connection", (connection, req) => {
         }
       });
     }
+  });
+
+  const usersOnline = [];
+
+  [...wss.clients].map((client) => {
+    usersOnline.push(client.userId);
+    [...usersOnline, client.userId];
+  });
+
+  let uniqueUsersOnline = usersOnline.reduce((a, c) => {
+    if (!a.includes(c)) {
+      a.push(c);
+    }
+    return a;
+  }, []);
+
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
   });
   connection.on("open", () => {
     uniqueUsersOnline.filter((item) => item !== connection.userId);

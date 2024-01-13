@@ -4,6 +4,7 @@ async function searchUser({ searchValue, res }) {
     loginUser: 1,
     regDate: 1,
     status: 1,
+    avatarColor: 1,
   };
 
   try {
