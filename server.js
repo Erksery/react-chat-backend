@@ -21,114 +21,126 @@ const server = express();
 server.use(express.json());
 server.use(cookieParser());
 
-const testServer = server.listen(5007);
-const wss = new WebSocket.Server({ server: testServer });
+async function run() {
+  await connection({ server });
 
-connection({ server });
+  const testServer = server.listen(5007);
+  const wss = new WebSocket.Server({ server: testServer });
 
-server.get("/getUsers", (req, res) => {
-  getUsers({ res });
-});
+  server.get("/getUsers", (req, res) => {
+    getUsers({ res });
+  });
 
-server.post("/register", regValidation, (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    res.status(400).json({ error: errors.array()[0].msg });
-  } else {
+  server.post("/register", regValidation, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ error: errors.array()[0].msg });
+    } else {
+      const enteredData = req.body;
+
+      registerUser({ enteredData, res });
+    }
+  });
+
+  server.post("/login", (req, res) => {
     const enteredData = req.body;
 
-    registerUser({ enteredData, res });
-  }
-});
+    loginUser({ enteredData, res });
+  });
 
-server.post("/login", (req, res) => {
-  const enteredData = req.body;
+  server.get("/profile", (req, res) => {
+    const { token } = req.cookies;
+    getProfile({ token, res });
+  });
 
-  loginUser({ enteredData, res });
-});
+  server.get("/searchUser", (req, res) => {
+    const { searchValue } = req.query;
+    searchUser({ searchValue, res });
+  });
 
-server.get("/profile", (req, res) => {
-  const { token } = req.cookies;
-  getProfile({ token, res });
-});
+  server.get("/history", (req, res) => {
+    const selectChat = req.query.selectChatId;
+    const { token } = req.cookies;
 
-server.get("/searchUser", (req, res) => {
-  const { searchValue } = req.query;
-  searchUser({ searchValue, res });
-});
+    getChatHistory({ res, selectChat, token });
+  });
 
-server.get("/history", (req, res) => {
-  const selectChat = req.query.selectChatId;
-  const { token } = req.cookies;
+  wss.on("connection", (connection, req) => {
+    const cookies = req.headers.cookie;
 
-  getChatHistory({ res, selectChat, token });
-});
+    if (cookies) {
+      const tokenCookie = cookies
+        .split("; ")
+        .find((str) => str.startsWith("token="));
+      if (tokenCookie !== undefined) {
+        const token = tokenCookie.split("=")[1];
+        if (token) {
+          jwt.verify(token, secretKey, (err, userData) => {
+            if (err) throw err;
+            const { userId, userLogin } = userData;
 
-wss.on("connection", (connection, req) => {
-  const cookies = req.headers.cookie;
-
-  if (cookies) {
-    const tokenCookie = cookies
-      .split("; ")
-      .find((str) => str.startsWith("token="));
-    if (tokenCookie !== undefined) {
-      const token = tokenCookie.split("=")[1];
-      if (token) {
-        jwt.verify(token, secretKey, (err, userData) => {
-          if (err) throw err;
-          const { userId, userLogin } = userData;
-
-          connection.userId = userId;
-          connection.userLogin = userLogin;
-        });
+            connection.userId = userId;
+            connection.userLogin = userLogin;
+          });
+        }
       }
     }
-  }
 
-  connection.on("message", (message) => {
-    const parseMessage = JSON.parse(message);
+    console.log(connection.userLogin);
 
-    const messageObject = {
-      ...parseMessage.message,
-    };
-    if (parseMessage) {
-      addMessage({ messageObject });
-      wss.clients.forEach((client) => {
-        if (
-          client.userId === parseMessage.message.recipient ||
-          client.userId === parseMessage.message.sender
-        ) {
-          client.send(
-            JSON.stringify({
-              message: { ...parseMessage.message },
-            })
-          );
+    connection.on("message", (message) => {
+      const parseMessage = JSON.parse(message);
+
+      const messageObject = {
+        ...parseMessage.message,
+      };
+      if (parseMessage) {
+        try {
+          console.log(messageObject);
+          addMessage({ messageObject });
+          wss.clients.forEach((client) => {
+            if (
+              client.userId === parseMessage.message.recipient ||
+              client.userId === parseMessage.message.sender
+            ) {
+              client.send(
+                JSON.stringify({
+                  message: { ...parseMessage.message },
+                })
+              );
+            }
+          });
+        } catch (err) {
+          console.log(err);
+        } finally {
+          console.log("Send finally");
         }
-      });
-    }
-  });
+      }
+    });
 
-  const usersOnline = [];
+    const usersOnline = [];
 
-  [...wss.clients].map((client) => {
-    usersOnline.push(client.userId);
-    [...usersOnline, client.userId];
-  });
+    [...wss.clients].map((client) => {
+      if (client.userId !== null && client.userId !== undefined)
+        usersOnline.push(client.userId);
+    });
 
-  let uniqueUsersOnline = usersOnline.reduce((a, c) => {
-    if (!a.includes(c)) {
-      a.push(c);
-    }
-    return a;
-  }, []);
+    let uniqueUsersOnline = usersOnline.reduce((a, c) => {
+      if (!a.includes(c)) {
+        a.push(c);
+      }
+      return a;
+    }, []);
 
-  wss.clients.forEach((client) => {
-    client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
+    wss.clients.forEach((client) => {
+      client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
+    });
+
+    connection.on("open", () => {});
+    connection.on("close", () => {
+      uniqueUsersOnline.filter((item) => item !== connection.userId);
+    });
   });
-  connection.on("open", () => {
-    uniqueUsersOnline.filter((item) => item !== connection.userId);
-  });
-  connection.on("close", () => {
-    uniqueUsersOnline.filter((item) => item !== connection.userId);
-  });
-});
+}
+
+run();
