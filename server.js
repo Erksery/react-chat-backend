@@ -86,8 +86,6 @@ async function run() {
       }
     }
 
-    console.log(connection.userLogin);
-
     connection.on("message", (message) => {
       const parseMessage = JSON.parse(message);
 
@@ -96,7 +94,7 @@ async function run() {
       };
       if (parseMessage) {
         try {
-          console.log(messageObject);
+          //console.log(messageObject);
           addMessage({ messageObject });
           wss.clients.forEach((client) => {
             if (
@@ -113,7 +111,7 @@ async function run() {
         } catch (err) {
           console.log(err);
         } finally {
-          console.log("Send finally");
+          //console.log("Send finally");
         }
       }
     });
@@ -132,15 +130,34 @@ async function run() {
       return a;
     }, []);
 
-    wss.clients.forEach((client) => {
-      client.send(JSON.stringify({ onlineUsers: uniqueUsersOnline }));
+    function sendOnlineUsers(users) {
+      wss.clients.forEach((client) => {
+        client.send(JSON.stringify({ onlineUsers: users }));
+      });
+    }
+
+    sendOnlineUsers(uniqueUsersOnline);
+
+    if (uniqueUsersOnline.length !== [...wss.clients].length) {
+      sendOnlineUsers(uniqueUsersOnline);
+    }
+
+    connection.on("open", () => {
+      console.log("Connection opened: ", connection.userId);
+      sendOnlineUsers(uniqueUsersOnline);
     });
 
-    connection.on("open", () => {});
     connection.on("close", () => {
-      uniqueUsersOnline.filter((item) => item !== connection.userId);
+      console.log("Connection closed: ", connection.userId);
+      const online = uniqueUsersOnline.filter(
+        (item) => item !== connection.userId
+      );
+
+      sendOnlineUsers(online);
     });
   });
 }
 
-run();
+run().catch((err) => {
+  console.log(err);
+});

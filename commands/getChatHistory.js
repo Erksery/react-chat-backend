@@ -13,7 +13,11 @@ async function getChatHistory({ res, selectChat, token }) {
           .toArray();
 
         if (dialogue !== null) {
-          res.status(200).json(dialogue);
+          if (selectChat) {
+            res.status(200).json(dialogue);
+          } else {
+            res.status(200).json([]);
+          }
         } else {
           res
             .status(400)
