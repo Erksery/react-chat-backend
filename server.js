@@ -55,14 +55,17 @@ async function run() {
 
   server.get("/searchUser", (req, res) => {
     const { searchValue } = req.query;
-    searchUser({ searchValue, res });
+    const { token } = req.cookies;
+
+    searchUser({ searchValue, token, res });
   });
 
   server.get("/history", (req, res) => {
     const selectChat = req.query.selectChatId;
+    const messagesLimit = req.query.messagesLimit;
     const { token } = req.cookies;
 
-    getChatHistory({ res, selectChat, token });
+    getChatHistory({ res, selectChat, token, messagesLimit });
   });
 
   wss.on("connection", (connection, req) => {
@@ -94,7 +97,6 @@ async function run() {
       };
       if (parseMessage) {
         try {
-          //console.log(messageObject);
           addMessage({ messageObject });
           wss.clients.forEach((client) => {
             if (
@@ -138,17 +140,14 @@ async function run() {
 
     sendOnlineUsers(uniqueUsersOnline);
 
-    if (uniqueUsersOnline.length !== [...wss.clients].length) {
-      sendOnlineUsers(uniqueUsersOnline);
-    }
-
-    connection.on("open", () => {
-      console.log("Connection opened: ", connection.userId);
-      sendOnlineUsers(uniqueUsersOnline);
-    });
+    // connection.on("open", () => {
+    //   console.log("Connection opened: ", connection.userId);
+    //   sendOnlineUsers(uniqueUsersOnline);
+    // });
 
     connection.on("close", () => {
-      console.log("Connection closed: ", connection.userId);
+      if (connection.userId ?? "Not authorization")
+        console.log("Connection closed: ", connection.userId);
       const online = uniqueUsersOnline.filter(
         (item) => item !== connection.userId
       );

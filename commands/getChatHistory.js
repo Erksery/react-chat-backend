@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { secretKey } = require("../config");
-async function getChatHistory({ res, selectChat, token }) {
+async function getChatHistory({ res, selectChat, token, messagesLimit }) {
   try {
     if (token) {
       jwt.verify(token, secretKey, async (err, userData) => {
@@ -10,11 +10,14 @@ async function getChatHistory({ res, selectChat, token }) {
             recipient: { $in: [userData.userId, selectChat] },
             sender: { $in: [userData.userId, selectChat] },
           })
+          .sort({ _id: -1 })
+          .limit(+messagesLimit)
           .toArray();
+        const reverseResult = dialogue.reverse();
 
         if (dialogue !== null) {
           if (selectChat) {
-            res.status(200).json(dialogue);
+            res.status(200).json(reverseResult);
           } else {
             res.status(200).json([]);
           }

@@ -1,4 +1,7 @@
-async function searchUser({ searchValue, res }) {
+const jwt = require("jsonwebtoken");
+const { secretKey } = require("../config");
+
+async function searchUser({ searchValue, token, res }) {
   const projection = {
     _id: 1,
     loginUser: 1,
@@ -12,7 +15,14 @@ async function searchUser({ searchValue, res }) {
       .find({ loginUser: { $regex: new RegExp(searchValue, "i") } })
       .project(projection)
       .toArray();
-    res.json(user);
+
+    jwt.verify(token, secretKey, (err, userData) => {
+      const resultUsers = user.filter(
+        (user) => user._id.toString() !== userData.userId
+      );
+
+      res.json(resultUsers);
+    });
   } catch (err) {
     console.log(err);
     res.json({ searchResult: "Нету такого" });
