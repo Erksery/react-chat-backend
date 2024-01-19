@@ -1,6 +1,5 @@
-const { ObjectId } = require("mongodb");
-
 async function addMessage({ messageObject }) {
+  //console.log(messageObject);
   try {
     const date = new Date();
     const ruDate = date.toLocaleString("ru");

@@ -2,6 +2,8 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const WebSocket = require("ws");
+const fs = require("fs");
+
 const { validationResult } = require("express-validator");
 const { connection } = require("./commands/connection");
 const { getUsers } = require("./commands/getUsers");
@@ -14,12 +16,13 @@ const { secretKey } = require("./config");
 const { addMessage } = require("./commands/addMessage");
 const { getChatHistory } = require("./commands/getChatHistory");
 const { ObjectId } = require("mongodb");
-const { updateUser } = require("./commands/updateUser");
+const { Buffer } = require("node:buffer");
 
 const server = express();
 
 server.use(express.json());
 server.use(cookieParser());
+server.use("/uploads", express.static(__dirname + "/uploads"));
 
 async function run() {
   await connection({ server });
@@ -96,24 +99,34 @@ async function run() {
         ...parseMessage.message,
       };
       if (parseMessage) {
-        try {
-          addMessage({ messageObject });
-          wss.clients.forEach((client) => {
-            if (
-              client.userId === parseMessage.message.recipient ||
-              client.userId === parseMessage.message.sender
-            ) {
-              client.send(
-                JSON.stringify({
-                  message: { ...parseMessage.message },
-                })
-              );
-            }
+        if ("message" in parseMessage) {
+          try {
+            addMessage({ messageObject });
+            wss.clients.forEach((client) => {
+              if (
+                client.userId === parseMessage.message.recipient ||
+                client.userId === parseMessage.message.sender
+              ) {
+                client.send(
+                  JSON.stringify({
+                    message: { ...parseMessage.message },
+                  })
+                );
+              }
+            });
+          } catch (err) {
+            console.log(err);
+          }
+        } else if ("file" in parseMessage) {
+          const { fileData } = parseMessage.file;
+          const parts = fileData.nameFile.split(".");
+          const ext = parts[parts.length - 1];
+          const filename = Date.now() + "." + ext;
+          const path = __dirname + "/uploads/" + filename;
+          const bufferData = Buffer.from(fileData.data, "utf8");
+          fs.writeFile(path, bufferData, () => {
+            console.log("Save");
           });
-        } catch (err) {
-          console.log(err);
-        } finally {
-          //console.log("Send finally");
         }
       }
     });
@@ -139,11 +152,6 @@ async function run() {
     }
 
     sendOnlineUsers(uniqueUsersOnline);
-
-    // connection.on("open", () => {
-    //   console.log("Connection opened: ", connection.userId);
-    //   sendOnlineUsers(uniqueUsersOnline);
-    // });
 
     connection.on("close", () => {
       if (connection.userId ?? "Not authorization")
