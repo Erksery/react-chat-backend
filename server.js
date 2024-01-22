@@ -3,7 +3,8 @@ const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const WebSocket = require("ws");
 const fs = require("fs");
-
+const multer = require("multer");
+const path = require("path");
 const { validationResult } = require("express-validator");
 const { connection } = require("./commands/connection");
 const { getUsers } = require("./commands/getUsers");
@@ -17,12 +18,31 @@ const { addMessage } = require("./commands/addMessage");
 const { getChatHistory } = require("./commands/getChatHistory");
 const { ObjectId } = require("mongodb");
 const { Buffer } = require("node:buffer");
+const { fileUpload } = require("./commands/fileUpload");
 
 const server = express();
 
 server.use(express.json());
 server.use(cookieParser());
+
 server.use("/uploads", express.static(__dirname + "/uploads"));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "./uploads";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueFileName = Date.now() + "." + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueFileName + ext);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 async function run() {
   await connection({ server });
@@ -69,6 +89,12 @@ async function run() {
     const { token } = req.cookies;
 
     getChatHistory({ res, selectChat, token, messagesLimit });
+  });
+
+  server.post("/fileUpload", upload.single("file"), (req, res) => {
+    const file = req.file;
+
+    fileUpload({ res, file });
   });
 
   wss.on("connection", (connection, req) => {
