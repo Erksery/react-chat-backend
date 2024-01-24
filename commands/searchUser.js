@@ -10,16 +10,41 @@ async function searchUser({ searchValue, token, res }) {
     avatarColor: 1,
   };
 
+  const projectionMessage = {
+    text: 1,
+    file: 1,
+    sender: 1,
+    recipient: 1,
+  };
+
   try {
     const user = await users
       .find({ loginUser: { $regex: new RegExp(searchValue, "i") } })
       .project(projection)
       .toArray();
 
-    jwt.verify(token, secretKey, (err, userData) => {
+    jwt.verify(token, secretKey, async (err, userData) => {
       const resultUsers = user.filter(
         (user) => user._id.toString() !== userData.userId
       );
+      const message = await messages
+        .find()
+        .project(projectionMessage)
+        .toArray();
+      const reverseMessage = message.reverse();
+
+      resultUsers.map((user) => {
+        const test = reverseMessage.find(
+          (el) =>
+            el.recipient === user._id.toString() ||
+            el.sender === user._id.toString()
+        );
+
+        user.lastMessageData = test;
+        //console.log(test);
+      });
+
+      // console.log(message);
 
       res.json(resultUsers);
     });
