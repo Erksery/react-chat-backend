@@ -9,7 +9,6 @@ async function connection({ server }) {
     const database = client.db("ReactChatApi");
     global.users = database.collection("usersDatabase");
     global.messages = database.collection("messagesDatabase");
-    global.dialogues = database.collection("dialoguesDatabase");
     await client.connect();
   } catch (err) {
     console.log("Ошибка при подключении к базе данных");

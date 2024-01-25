@@ -5,8 +5,6 @@ async function searchUser({ searchValue, token, res }) {
   const projection = {
     _id: 1,
     loginUser: 1,
-    regDate: 1,
-    status: 1,
     avatarColor: 1,
   };
 
@@ -28,7 +26,9 @@ async function searchUser({ searchValue, token, res }) {
         (user) => user._id.toString() !== userData.userId
       );
       const message = await messages
-        .find()
+        .find({
+          $or: [{ recipient: userData.userId }, { sender: userData.userId }],
+        })
         .project(projectionMessage)
         .toArray();
       const reverseMessage = message.reverse();
