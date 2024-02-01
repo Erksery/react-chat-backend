@@ -19,6 +19,7 @@ const { getChatHistory } = require("./commands/getChatHistory");
 const { ObjectId } = require("mongodb");
 const { Buffer } = require("node:buffer");
 const { fileUpload } = require("./commands/fileUpload");
+const { deleteMessages } = require("./commands/deleteMessages");
 
 const server = express();
 
@@ -89,6 +90,12 @@ async function run() {
     const { token } = req.cookies;
 
     getChatHistory({ res, selectChat, token, messagesLimit });
+  });
+
+  server.post("/deleteMessages", (req, res) => {
+    const { messagesArray, userData } = req.body;
+
+    deleteMessages({ res, messagesArray, userData });
   });
 
   server.post("/fileUpload", upload.single("file"), (req, res) => {
