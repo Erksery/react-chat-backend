@@ -104,6 +104,25 @@ async function run() {
     fileUpload({ res, file });
   });
 
+  server.post("/circumcisedImage", (req, res) => {
+    const {image} = req.body
+
+    const base64Data = image.replace(/^data:image\/jpeg;base64,/, '');
+
+    const binaryData = Buffer.from(base64Data, 'base64');
+    // fs.writeFile('uploaded_image.jpeg', binaryData, 'binary', (err) => {
+    //   if (err) {
+    //     console.error('Error saving image:', err);
+    //     res.status(500).send('Error saving image');
+    //   } else {
+    //     console.log('Image saved successfully');
+    //     res.send('Image uploaded successfully');
+    //   }
+    // });
+
+    console.log(binaryData)
+  })
+
   wss.on("connection", (connection, req) => {
     const cookies = req.headers.cookie;
 
